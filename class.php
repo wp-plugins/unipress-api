@@ -937,6 +937,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			$args['order'] 			= !empty( $_REQUEST['order'] ) 			? $_REQUEST['order'] 								: 'DESC';
 			$args['post_type'] 		= !empty( $_REQUEST['post_type'] ) 		? $_REQUEST['post_type'] 							: array( 'post' );
 			$args['s'] 		        = !empty( $_REQUEST['s'] ) 		        ? $_REQUEST['s'] 							        : false;
+			$args['author']         = !empty( $_REQUEST['author'] )         ? $_REQUEST['author'] 						        : '';
 
 			if ( !empty( $_REQUEST['taxonomy'] ) && !empty( $_REQUEST['term'] ) ) {
 			
