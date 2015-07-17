@@ -1,0 +1,53 @@
+.toplevel_page_unipress-settings table {
+	border-collapse: collapse;
+	width: 100%;
+}
+.toplevel_page_unipress-settings table tr {
+	display: table-row;
+}
+.toplevel_page_unipress-settings table#unipress_administrator_options tr {
+	border-bottom: 1px dotted grey;
+}
+.toplevel_page_unipress-settings table tr p.description {
+	font-weight: normal;
+	text-align: left;
+}
+.toplevel_page_unipress-settings table th {
+	vertical-align:  text-top;
+	width: 30%;
+}
+.toplevel_page_unipress-settings table td {
+	vertical-align:  text-top;
+	width: 70%;
+}
+.toplevel_page_unipress-settings table td input.in_app_purchase_id {
+	width: 60%;
+}
+.toplevel_page_unipress-settings table.deeplink-table {
+	border: 1px dotted lightgrey;
+	margin-bottom: 25px;
+}
+.subscription-id-delete{float:right;text-align:right;padding:0;}
+.subscription-id-delete{
+	-webkit-box-sizing: content-box;
+	-moz-box-sizing: content-box;
+	box-sizing: content-box;
+	display: inline-block;
+	width: 20px;
+	height: 20px;
+	border: 2px solid transparent;
+	border-radius: 50%;
+	text-decoration: none;
+	text-align: center;
+	color: #BBB;
+	-webkit-transition: all .2s linear;
+	-moz-transition: all .2s linear;
+	transition: all .2s linear;
+	vertical-align: middle;
+	margin-top: 4px;
+}
+.subscription-id-delete:hover{border-color:#E1797A;color:#E1797A;}
+#unipress-custom-css, #unipress-custom-js {
+	width: 100%;
+	height: 400px;
+}
