@@ -119,9 +119,10 @@ if ( !function_exists( 'unipress_api_get_unique_token' ) ) {
 		
 		$token = strtolower( substr( md5( uniqid( rand(), true ) ), 0, 7 ) );
 
-		if ( false === get_transient( 'unipress_api_token_' . $token ) ) {
+		if ( false === get_option( 'unipress_api_token_' . $token, false ) ) {
 			$current_user = wp_get_current_user();
-			set_transient( 'unipress_api_token_' . $token, $current_user->ID, 60 * 5 ); //Create temp token, expires in 5 minutes
+			update_option( 'unipress_api_token_expires_' . $token, current_time( 'timestamp' ) + ( 60 * 5 ) );
+			update_option( 'unipress_api_token_' . $token, $current_user->ID );
 			return strtoupper( $token );
 		} else {
 			return unipress_api_get_unique_token();
@@ -130,6 +131,51 @@ if ( !function_exists( 'unipress_api_get_unique_token' ) ) {
 	}
 	
 }
+
+/**
+ * Clean up expired tokens by removing data and their expiration entries from
+ * the WordPress options table.
+ *
+ * This method should never be called directly and should instead be triggered as part
+ * of a scheduled task or cron job.
+ */
+function unipress_api_token_cleanup() {
+	global $wpdb;
+	
+	if ( defined( 'WP_SETUP_CONFIG' ) ) {
+		return;
+	}
+	
+	if ( !defined( 'WP_INSTALLING' ) ) {
+	
+		// Allow other plugins to hook in to the token cleanup process.
+		do_action( 'before_unipress_api_token_cleanup' );
+		
+		$results = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options WHERE option_name LIKE 'unipress_api_token_expires_%'" );
+
+		$now = current_time( 'timestamp' );
+		$expired_tokens = array();
+
+		foreach( $results as $result ) {
+			// If the session has expired
+			if ( $now > intval( $result->option_value ) ) {
+				$expired_keys[] = $result->option_name;
+				$expired_keys[] = 'unipress_api_token_' . substr( $result->option_name, 27 );
+			}
+		}
+
+		// Delete all expired sessions in a single query
+		if ( ! empty( $expired_keys ) ) {
+			$formatted = implode( ', ', array_fill( 0, count( $expired_keys ), '%s' ) );
+			$query     = $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name IN ($formatted)", $expired_keys );
+			$wpdb->query( $query );
+		}
+	
+		// Allow other plugins to hook in to the token cleanup process.
+		do_action( 'after_unipress_api_token_cleanup' );
+	}
+}
+add_action( 'unipress_api_token_cleanup_schedule', 'unipress_api_token_cleanup' );
 
 if ( !function_exists( 'unipress_api_get_user_restrictions_by_device_id' ) ) {
 	

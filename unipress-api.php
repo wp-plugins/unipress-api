@@ -11,7 +11,7 @@ Plugin Name: UniPress API
 Plugin URI: http://getunipress.com/
 Description: A premium WordPress plugin by UniPress.
 Author: UniPress Development Team
-Version: 1.1.0
+Version: 1.2.0
 Author URI: http://getunipress.com/
 Tags:
 */
@@ -22,7 +22,7 @@ if ( !defined( 'UNIPRESS_STORE_URL' ) )
 	
 define( 'UNIPRESS_API_NAME', 		'UniPress API' );
 define( 'UNIPRESS_API_SLUG', 		'unipress-api' );
-define( 'UNIPRESS_API_VERSION', 	'1.1.0' );
+define( 'UNIPRESS_API_VERSION', 	'1.2.0' );
 define( 'UNIPRESS_API_DB_VERSION', 	'1.0.0' );
 define( 'UNIPRESS_API_URL', 		plugin_dir_url( __FILE__ ) );
 define( 'UNIPRESS_API_PATH', 		plugin_dir_path( __FILE__ ) );
@@ -74,3 +74,27 @@ function unipress_api_register_image_sizes() {
 	add_image_size( 'unipress-wide-screen', 2560, 180, true );
 }
 add_action( 'init', 'unipress_api_register_image_sizes' );
+
+/**
+ * Activation hook
+ *
+ * @since 1.2.0
+ *
+ * @return void
+*/
+function unipress_api_activation() {
+	if ( ! wp_next_scheduled( 'unipress_api_token_cleanup_schedule' ) ) {
+		wp_schedule_event( strtotime( get_gmt_from_date( date( 'Y-m-d H:i:s', strtotime( 'Tomorrow 4AM' ) ) ) ), 'daily', 'unipress_api_token_cleanup_schedule' );
+	}
+}
+register_activation_hook( __FILE__, 'unipress_api_activation' );
+
+/**
+ * Deactivation hook
+ *
+ * @since 1.2.0
+ */
+function unipress_api_deactivation() {
+	wp_clear_scheduled_hook( 'unipress_api_token_cleanup_schedule' );
+}
+register_deactivation_hook( __FILE__, 'unipress_api_deactivation' );

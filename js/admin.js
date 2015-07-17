@@ -19,4 +19,12 @@ unipress_admin_jquery(document).ready(function($) {
         $( this ).closest( '.subscription-id-match' ).remove();
 	});
 	
+	$( '#unipress_administrator_options' ).on( 'change', '#unipress-excerpt-type', function( event ) {
+		if ( 'content' === $( 'option:selected', this ).val() ) {
+			$( 'span#unipress-excerpt-size' ).show();
+		} else {
+			$( 'span#unipress-excerpt-size' ).hide();
+		}
+	});
+	
 });

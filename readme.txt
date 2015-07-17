@@ -2,8 +2,8 @@
 Contributors: layotte, pericson, endocreative
 Tags: mobile, app, api
 Requires at least: 3.3
-Tested up to: 4.2
-Stable tag: 1.1.0
+Tested up to: 4.3
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,13 @@ You must have:
 
 
 == Changelog ==
+
+= 1.2.0 =
+* Changed how tokens are stored in the database
+* Added Custom JS Area
+* Added CDN Support
+* Added Excerpt/Content customizations
+* Added ability to exclude certain categories from UniPress
 
 = 1.1.0 =
 Adding author arg to get-content-list

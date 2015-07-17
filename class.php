@@ -26,6 +26,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			
 			register_nav_menu( 'unipress-app-menu', 'UniPress Device Menu' );
 			
+			add_action( 'admin_init', array( $this, 'upgrade' ) );
+			
 			add_action( 'admin_enqueue_scripts', array( $this, 'admin_wp_enqueue_scripts' ) );
 			add_action( 'admin_print_styles', array( $this, 'admin_wp_print_styles' ) );
 			add_action( 'wp_enqueue_scripts', array( $this, 'wp_enqueue_scripts' ) );
@@ -45,6 +47,24 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				$this->leaky_paywall_enabled = false;
 			}
 
+		}
+		
+		function upgrade() {
+			
+			$old_version = get_option( 'unipress_api_version', '0.0.0' );
+						
+			if ( version_compare( $old_version, '1.2.0', '<' ) ) {
+				$this->upgrade_to_1_2_0();
+			}
+						
+			update_option( 'unipress_api_version', UNIPRESS_API_VERSION );
+			
+		}
+		
+		function upgrade_to_1_2_0() {
+			if ( ! wp_next_scheduled( 'unipress_api_token_cleanup_schedule' ) ) {
+				wp_schedule_event( strtotime( get_gmt_from_date( date( 'Y-m-d H:i:s', strtotime( 'Tomorrow 4AM' ) ) ) ), 'daily', 'unipress_api_token_cleanup_schedule' );
+			}
 		}
 		
 		function admin_wp_enqueue_scripts( $hook_suffix ) {
@@ -150,6 +170,10 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				'app-id' 					=> '',
 				'secret-key' 				=> '',
 				'silent-push' 				=> true,
+				'attachment-baseurl' 		=> '', //For CDNs
+				'excerpt-type' 				=> 'default',
+				'excerpt-size' 				=> 55,
+				'excluded-cats' 			=> array(),
 				//Deeplinks
 				'dl-enabled' 					=> false,
 				'dl-custom-schema' 				=> '',
@@ -166,8 +190,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				'dl-android-twitter-enabled' 	=> false,
 				'dl-android-facebook-enabled' 	=> false,
 				'dl-facebook-fallback' 			=> false,
-				//Custom CSS
-				'css' => '',
+				'css' 						=> '', //Custom CSS
+				'js' 						=> '', //Custom JS
 			);
 		
 			$defaults = apply_filters( 'unipress_api_settings_defaults', $defaults );
@@ -249,6 +273,34 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					$settings['silent-push'] = true;
 				} else {
 					$settings['silent-push'] = false;
+				}
+					
+				if ( !empty( $_REQUEST['attachment-baseurl'] ) ) {
+					$baseurl = trim( $_REQUEST['attachment-baseurl'] );
+					$settings['attachment-baseurl'] = $baseurl;
+					if ( false === filter_var( $baseurl, FILTER_VALIDATE_URL ) ) {
+						$errors[] = '<div class="error"><p><strong>' . __( 'Invalid URL entered for Attachment Baseurl.', 'unipress-api' ) . '</strong></p></div>';
+					}
+				} else {
+					$settings['attachment-baseurl'] = '';
+				}
+					
+				if ( !empty( $_REQUEST['excerpt-type'] ) ) {
+					$settings['excerpt-type'] = $_REQUEST['excerpt-type'];
+				} else {
+					unset( $settings['excerpt-type'] );
+				}
+					
+				if ( !empty( $_REQUEST['excerpt-size'] ) ) {
+					$settings['excerpt-size'] = intval( $_REQUEST['excerpt-size'] );
+				} else {
+					unset( $settings['excerpt-size'] );
+				}
+					
+				if ( !empty( $_REQUEST['excluded-cats'] ) ) {
+					$settings['excluded-cats'] = $_REQUEST['excluded-cats'];
+				} else {
+					unset( $settings['excluded-cats'] );
 				}
 				
 				//Deeplinks
@@ -332,6 +384,12 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					$settings['css'] = stripslashes( $_REQUEST['css'] );
 				} else {
 					$settings['css'] = '';
+				}
+
+				if ( !empty( $_REQUEST['js'] ) ) {
+					$settings['js'] = stripslashes( $_REQUEST['js'] );
+				} else {
+					$settings['js'] = '';
 				}
 				
 				if ( !empty( $settings['app-id'] ) && !empty( $settings['secret-key'] ) ) {
@@ -467,6 +525,59 @@ if ( ! class_exists( 'UniPress_API' ) ) {
                                 <td>
                                 	<p><input type="checkbox" id="silent-push" name="silent-push" <?php checked( $settings['silent-push'] ); ?> /></p>
                                 	<p class="description"><?php _e( 'Silent Push tells the mobile device when new content is available and caches the latest content', 'unipress' ); ?></p>
+                                </td>
+                            </tr> 
+                        	<tr>
+                                <th><?php _e( 'Attachment Baseurl', 'unipress-api' ); ?></th>
+                                <td>
+                                	<p><input type="text" id="attachment-baseurl" class="" name="attachment-baseurl" value="<?php echo htmlspecialchars( stripcslashes( $settings['attachment-baseurl'] ) ); ?>" /></p>
+                                	<p class="description"><?php _e( 'Change this if you are using a CDN to deliver your files.', 'unipress' ); ?></p>
+                                </td>
+                            </tr> 
+                        	<tr>
+                                <th><?php _e( 'Excerpt Options', 'unipress-api' ); ?></th>
+                                <td>
+	                                <p>
+		                                <?php 
+			                            $excerpt_options = array(
+				                            'default' => __( 'WordPress Default', 'unipress-api' ),
+				                            'content' => __( 'Post Content', 'unipress-api' ),
+			                            );
+			                            $select = '<select id="unipress-excerpt-type" name="excerpt-type">';
+			                            foreach ( $excerpt_options as $type => $label ) {
+				                            $select .= '<option value="' . $type . '" ' . selected( $type, $settings['excerpt-type'], false ) . '>' . $label . '</option>';
+			                            }
+			                            $select .= '</select>';
+			                            
+			                            if ( 'content' === $settings['excerpt-type'] ) {
+				                            $hidden = '';
+			                            } else {
+				                            $hidden = 'display: none;';
+			                            }
+			                            $limit_input = '<input type="number" class="small-text" name="excerpt-size" value="' . $settings['excerpt-size'] . '" />';
+			                            $limit = '<span id="unipress-excerpt-size" style="' . $hidden . '">' . sprintf( __( '(limited to %s words)', 'unipress-api' ), $limit_input ) . '</span>';
+			                            
+			                            printf( __( 'Use %s %s for the excerpt in UniPress.', 'unipress-api' ), $select, $limit ); 
+			                            ?>
+	                                </p>
+                                </td>
+                            </tr> 
+                        	<tr>
+                                <th><?php _e( 'Exclude Categories', 'unipress-api' ); ?></th>
+                                <td>
+		                            <p>
+		                            <select id="excluded-cats" name="excluded-cats[]" multiple="multiple" size="5">
+			                            <?php 
+			                            $categories = get_categories( array( 'hide_empty' => 0, 'orderby' => 'name' ) );
+			                            foreach ( $categories as $category ) {
+			                                ?>
+			                                <option value="<?php echo $category->term_id; ?>" <?php selected( in_array( $category->term_id, $settings['excluded-cats'] ) ); ?>><?php echo $category->name; ?></option>
+			                                <?php
+			                            }
+			                            ?>
+		                            </select>
+		                            </p>
+                                	<p class="description"><?php _e( 'Select any categories you do not want to display in UniPress.', 'unipress' ); ?></p>
                                 </td>
                             </tr> 
                             
@@ -615,6 +726,25 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 
 						<textarea id="unipress-custom-css" name="css"><?php echo esc_textarea( $settings['css'] ); ?></textarea> 
 						<p class="description"><?php _e( 'Use this to add custom style sheets to your UniPress mobile app!', 'unipress-api' ); ?></p>                       
+                                                                          
+                        <p class="submit">
+                            <input class="button-primary" type="submit" name="update_unipress_api_settings" value="<?php _e( 'Save Settings', 'unipress-api' ) ?>" />
+                        </p>
+
+                        </div>
+                        
+                    </div>
+                        
+                    <div id="modules" class="postbox">
+                    
+                        <div class="handlediv" title="Click to toggle"><br /></div>
+                        
+                        <h3 class="hndle"><span><?php _e( 'Custom JavaScript (JS)', 'unipress-api' ); ?></span></h3>
+                        
+                        <div class="inside">
+
+						<textarea id="unipress-custom-js" name="js"><?php echo esc_textarea( $settings['js'] ); ?></textarea> 
+						<p class="description"><?php _e( 'Use this to add custom JavaScript to your UniPress mobile app!', 'unipress-api' ); ?></p>                       
                                                                           
                         <p class="submit">
                             <input class="button-primary" type="submit" name="update_unipress_api_settings" value="<?php _e( 'Save Settings', 'unipress-api' ) ?>" />
@@ -857,6 +987,10 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 						$this->api_response( $this->get_css() );
 						break;
 						
+					case 'get-js':
+						$this->api_response( $this->get_js() );
+						break;
+						
 					default:
 						$response = apply_filters( 'process-unipress-api-request-' . $_REQUEST['unipress-api'], false );
 						if ( empty( $response ) ) {
@@ -930,6 +1064,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 		//parse data
 		function get_content_list() {
 			global $post;
+			$settings = $this->get_settings();
+			$check_categories = false;
 
 			$args['posts_per_page'] = !empty( $_REQUEST['posts_per_page'] ) ? $_REQUEST['posts_per_page'] 						: 10;
 			$args['offset'] 		= !empty( $_REQUEST['page'] ) 			? $_REQUEST['posts_per_page'] * $_REQUEST['page'] 	: 0;
@@ -940,13 +1076,11 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			$args['author']         = !empty( $_REQUEST['author'] )         ? $_REQUEST['author'] 						        : '';
 
 			if ( !empty( $_REQUEST['taxonomy'] ) && !empty( $_REQUEST['term'] ) ) {
-			
 				if ( is_numeric( $_REQUEST['term'] ) ) {
 					$field = 'term_id';
 				} else {
 					$field = 'slug';
 				}
-				
 				$args['tax_query'] = array(
 					array(
 						'taxonomy' => $_REQUEST['taxonomy'],
@@ -954,16 +1088,11 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 						'terms'    => $_REQUEST['term'],
 					),
 				);
-
 			} else if ( !empty( $_REQUEST['taxonomies'] ) && !empty( $_REQUEST['terms'] ) ) {
-				
 				if ( is_array( $_REQUEST['taxonomies'] ) && is_array( $_REQUEST['terms'] ) ) {
-					
 					if ( count( $_REQUEST['taxonomies'] ) === count( $_REQUEST['terms'] ) ) { //Make sure they are the same size
-						
 						$taxonomies = $_REQUEST['taxonomies'];
 						$terms = $_REQUEST['terms'];
-						
 						$args['tax_query'] = array( 'relation' => 'AND' );
 						foreach( $taxonomies as $key => $taxonomy ) {
 							
@@ -979,16 +1108,42 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 								'terms'    => $terms[$key],
 							);
 						}
-						
 					}
 				} 
 			}
 			
-			$upload_dir = wp_upload_dir();
+			$args = apply_filters( 'unipress_get_content_list_get_posts_args', $args );
 			$posts = get_posts( $args );
 			
+			$upload_dir = wp_upload_dir();
+			$baseurl = $upload_dir['baseurl'];
+			if ( !empty( $settings['attachment_baseurl'] ) ) { //setting override WordPress default
+				$baseurl = $settings['attachment_baseurl'];
+			}
+			
+			if ( !empty( $settings['excluded-cats'] ) ) {
+				$check_categories = true;
+			}
+			
 			foreach( $posts as &$post ) {
-				setup_postdata( $post ); 
+				setup_postdata( $post );
+				
+				if ( $check_categories ) {
+					$match = false;
+					$categories = wp_get_post_categories( $post->ID );
+					
+					foreach ( $categories as $cat ) {
+						if ( in_array( $cat, $settings['excluded-cats'] ) ) {
+							$match = true;
+							break;
+						}
+					}
+					
+					if ( $match ) {
+						continue; //Skip this post
+					}
+				}
+				
 				$args = array(
 					'post_type' 		=> 'attachment',
 					'posts_per_page' 	=> -1,
@@ -1007,9 +1162,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					}
 				}
 				
-				$post->post_excerpt = get_the_excerpt();
-				
-				$post->attachment_baseurl = $upload_dir['baseurl'];
+				$post->attachment_baseurl = apply_filters( 'unipress_attachment_baseurl', $baseurl );
 				$post->attachments = $attachments;
 				$post->featured_image = apply_filters( 'unipress_api_get_content_list_featured_image', wp_get_attachment_metadata( get_post_thumbnail_id( $post->ID ) ), $post->ID );
 
@@ -1026,6 +1179,16 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				$post->author_meta->description 	= get_the_author_meta( 'description', 		$post->post_author );
 				
 				$post->formatted_post_content = apply_filters( 'the_content', $post->post_content );
+				
+				if ( 'default' === $settings['excerpt-type'] ) {
+					$excerpt = get_the_excerpt();
+				} else {
+					$excerpt = str_replace( ']]>', ']]&gt;', $post->formatted_post_content ); //From wp-includes/formatting.php
+					$excerpt_more = apply_filters( 'excerpt_more', ' ' . '[&hellip;]' );
+					$excerpt = wp_trim_words( $excerpt, $settings['excerpt-size'], $excerpt_more );
+				}
+				
+				$post->post_excerpt = apply_filters( 'unipress_api_excerpt', $excerpt );
 				
 				//We don't need these
 				unset( $post->post_content );
@@ -1086,8 +1249,13 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				}
 				
 				global $post;
+				$settings = $this->get_settings();
 				$is_restricted = false;
 				$upload_dir = wp_upload_dir();
+				$baseurl = $upload_dir['baseurl'];
+				if ( !empty( $settings['attachment_baseurl'] ) ) { //setting override WordPress default
+					$baseurl = $settings['attachment_baseurl'];
+				}
 				$post = get_post( $_REQUEST['article-id'] );
 				setup_postdata( $post ); 
 
@@ -1151,9 +1319,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					}
 					
 					$post->guid = html_entity_decode( $post->guid );
-					$post->post_excerpt = get_the_excerpt();
 					
-					$post->attachment_baseurl = $upload_dir['baseurl'];
+					$post->attachment_baseurl = apply_filters( 'unipress_api_attachment_baseurl', $baseurl );
 					$post->attachments = $attachments;
 					$post->featured_image = apply_filters( 'unipress_api_get_article_featured_image', wp_get_attachment_metadata( get_post_thumbnail_id( $post->ID ) ), $post->ID );
 					
@@ -1170,6 +1337,16 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					$post->author_meta->description 	= get_the_author_meta( 'description', 		$post->post_author );
 					
 					$post->formatted_post_content = apply_filters( 'the_content', $post->post_content );
+					
+					if ( 'default' === $settings['excerpt-type'] ) {
+						$excerpt = get_the_excerpt();
+					} else {
+						$excerpt = str_replace( ']]>', ']]&gt;', $post->formatted_post_content ); //From wp-includes/formatting.php
+						$excerpt_more = apply_filters( 'excerpt_more', ' ' . '[&hellip;]' );
+						$excerpt = wp_trim_words( $excerpt, $settings['excerpt-size'], $excerpt_more );
+					}
+					
+					$post->post_excerpt = apply_filters( 'unipress_api_excerpt', $excerpt );
 						
 					//We don't need these
 					unset( $post->post_content );
@@ -1353,7 +1530,19 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				
 				if ( empty( $post['user-token'] ) ) {
 					throw new Exception( __( 'Missing User Token.', 'unipress-api' ), 400 );
-				} else if ( false === ( $user_id = get_transient( 'unipress_api_token_' . strtolower( trim( $post['user-token'] ) ) ) ) ) {
+				} else {
+					$token = strtolower( trim( $post['user-token'] ) );
+				}
+				
+				if ( false === ( $user_id = get_option( 'unipress_api_token_' . $token, false ) ) 
+					|| false === ( $expires = get_option( 'unipress_api_token_expires_' . $token, false ) ) ) {
+					throw new Exception( __( 'Unable to verify token. Please generate a new one and try again.', 'unipress-api' ), 400 );
+				}
+				
+				$now = current_time( 'timestamp' );
+				if ( $now > intval( $expires ) ) {
+					delete_option( 'unipress_api_token_expires_' . $token );
+					delete_option( 'unipress_api_token_' . $token );
 					throw new Exception( __( 'User Token has Expired. Please generate a new one.', 'unipress-api' ), 400 );
 				}
 				
@@ -1377,7 +1566,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					);
 				}
 				
-				delete_transient( 'unipress_api_token_' . $post['user-token'] ); //We don't want to use this one again
+				delete_option( 'unipress_api_token_expires_' . $token );
+				delete_option( 'unipress_api_token_' . $token );
 				return $response;
 			}
 			catch ( Exception $e ) {
@@ -1841,6 +2031,15 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			$response = array(
 				'http_code' => 200,
 				'body' 		=> $settings['css'],
+			);
+			return $response;
+		}
+		
+		function get_js() {
+			$settings = $this->get_settings();
+			$response = array(
+				'http_code' => 200,
+				'body' 		=> $settings['js'],
 			);
 			return $response;
 		}		
