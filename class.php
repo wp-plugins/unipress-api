@@ -1117,8 +1117,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			
 			$upload_dir = wp_upload_dir();
 			$baseurl = $upload_dir['baseurl'];
-			if ( !empty( $settings['attachment_baseurl'] ) ) { //setting override WordPress default
-				$baseurl = $settings['attachment_baseurl'];
+			if ( !empty( $settings['attachment-baseurl'] ) ) { //setting override WordPress default
+				$baseurl = $settings['attachment-baseurl'];
 			}
 			
 			if ( !empty( $settings['excluded-cats'] ) ) {
@@ -1253,8 +1253,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				$is_restricted = false;
 				$upload_dir = wp_upload_dir();
 				$baseurl = $upload_dir['baseurl'];
-				if ( !empty( $settings['attachment_baseurl'] ) ) { //setting override WordPress default
-					$baseurl = $settings['attachment_baseurl'];
+				if ( !empty( $settings['attachment-baseurl'] ) ) { //setting override WordPress default
+					$baseurl = $settings['attachment-baseurl'];
 				}
 				$post = get_post( $_REQUEST['article-id'] );
 				setup_postdata( $post ); 
