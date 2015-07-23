@@ -1140,10 +1140,11 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					}
 					
 					if ( $match ) {
+						$post = null;
 						continue; //Skip this post
 					}
 				}
-				
+								
 				$args = array(
 					'post_type' 		=> 'attachment',
 					'posts_per_page' 	=> -1,
