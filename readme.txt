@@ -3,7 +3,7 @@ Contributors: layotte, pericson, endocreative
 Tags: mobile, app, api
 Requires at least: 3.3
 Tested up to: 4.3
-Stable tag: 1.2.2
+Stable tag: 1.2.3
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,9 @@ You must have:
 
 
 == Changelog ==
+= 1.2.3 =
+* Adding post date to push notification
+
 = 1.2.2 =
 * Fixing bug with post not being removed on an excluded category match
 

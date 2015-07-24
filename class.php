@@ -920,7 +920,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				} else if ( !empty( $settings['silent-push'] ) && 'post' === $post->post_type ) { //assume it's the only type of content that we want to send a silent notification for...
 					$args = array(
 						'headers'	=> array( 'content-type' => 'application/json' ),
-						'body'		=> json_encode( array( 'device-type' => $settings['push-device-type'] ) ),
+						'body'		=> json_encode( array( 'device-type' => $settings['push-device-type'], 'post_date' => $post->post_date_gmt ) ),
 					);
 					$response = wp_remote_post( $push_url, $args );
 				}
