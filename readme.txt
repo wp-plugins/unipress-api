@@ -3,7 +3,7 @@ Contributors: layotte, pericson, endocreative
 Tags: mobile, app, api
 Requires at least: 3.3
 Tested up to: 4.3
-Stable tag: 1.2.3
+Stable tag: 1.2.4
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,9 @@ You must have:
 
 
 == Changelog ==
+= 1.2.4 =
+* Change how we remove posts that are in excluded cats
+
 = 1.2.3 =
 * Adding post date to push notification
 

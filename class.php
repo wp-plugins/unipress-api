@@ -1125,7 +1125,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				$check_categories = true;
 			}
 			
-			foreach( $posts as &$post ) {
+			foreach( $posts as $key => &$post ) {
 				setup_postdata( $post );
 				
 				if ( $check_categories ) {
@@ -1140,7 +1140,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					}
 					
 					if ( $match ) {
-						$post = null;
+						unset( $posts[$key] );
 						continue; //Skip this post
 					}
 				}
