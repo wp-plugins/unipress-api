@@ -1068,7 +1068,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 			$check_categories = false;
 
 			$args['posts_per_page'] = !empty( $_REQUEST['posts_per_page'] ) ? $_REQUEST['posts_per_page'] 						: 10;
-			$args['offset'] 		= !empty( $_REQUEST['page'] ) 			? $_REQUEST['posts_per_page'] * $_REQUEST['page'] 	: 0;
+			$args['offset'] 		= !empty( $_REQUEST['page'] ) 			? $args['posts_per_page'] * $_REQUEST['page'] 	    : 0;
 			$args['orderby'] 		= !empty( $_REQUEST['orderby'] ) 		? $_REQUEST['orderby'] 								: 'post_date';
 			$args['order'] 			= !empty( $_REQUEST['order'] ) 			? $_REQUEST['order'] 								: 'DESC';
 			$args['post_type'] 		= !empty( $_REQUEST['post_type'] ) 		? $_REQUEST['post_type'] 							: array( 'post' );
@@ -1190,6 +1190,7 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				}
 				
 				$post->post_excerpt = apply_filters( 'unipress_api_excerpt', $excerpt );
+				$post->post_url = get_permalink( $post->ID );
 				
 				//We don't need these
 				unset( $post->post_content );
@@ -1222,6 +1223,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				$post = apply_filters( 'unipress_api_get_content_list_post', $post );
 					
 			}
+			
+			$posts = array_values( $posts );
 			
 			$response = array(
 				'http_code' => 200,
@@ -1348,7 +1351,8 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					}
 					
 					$post->post_excerpt = apply_filters( 'unipress_api_excerpt', $excerpt );
-						
+					$post->post_url = get_permalink( $post->ID );
+
 					//We don't need these
 					unset( $post->post_content );
 					unset( $post->post_content_filtered );
