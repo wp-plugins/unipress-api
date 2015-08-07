@@ -1157,6 +1157,11 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				if ( !empty( $attachment_posts ) ) {
 					foreach ( $attachment_posts as $attachment ) {
 						$metadata = wp_get_attachment_metadata( $attachment->ID );
+						$temp_attachment = get_post( $attachment->ID );
+						$metadata['image_meta']['title']       = $temp_attachment->post_title;
+						$metadata['image_meta']['alt']         = get_post_meta( $temp_attachment->ID, '_wp_attachment_image_alt', true );
+						$metadata['image_meta']['description'] = $temp_attachment->post_content;
+						$metadata['image_meta']['caption']     = $temp_attachment->post_excerpt;
 						if ( !empty( $metadata ) ) {
 							$attachments[] = $metadata;
 						}
@@ -1165,7 +1170,15 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				
 				$post->attachment_baseurl = apply_filters( 'unipress_attachment_baseurl', $baseurl );
 				$post->attachments = $attachments;
-				$post->featured_image = apply_filters( 'unipress_api_get_content_list_featured_image', wp_get_attachment_metadata( get_post_thumbnail_id( $post->ID ) ), $post->ID );
+
+				$featured_image_id = get_post_thumbnail_id( $post->ID );
+				$post->featured_image = wp_get_attachment_metadata( $featured_image_id );
+				$temp_attachment = get_post( $featured_image_id );
+				$post->featured_image['image_meta']['title']       = $temp_attachment->post_title;
+				$post->featured_image['image_meta']['alt']         = get_post_meta( $temp_attachment->ID, '_wp_attachment_image_alt', true );
+				$post->featured_image['image_meta']['description'] = $temp_attachment->post_content;
+				$post->featured_image['image_meta']['caption']     = $temp_attachment->post_excerpt;
+				$post->featured_image = apply_filters( 'unipress_api_get_content_list_featured_image', $post->featured_image, $post->ID );
 
 				$post->author_meta = new stdClass();
 				$post->author_meta->user_login 		= get_the_author_meta( 'user_login', 		$post->post_author );
@@ -1235,10 +1248,10 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 		
 		function get_article() {
 			try {
-				if ( empty( $_REQUEST['article-id'] ) ) {
-					throw new Exception( __( 'Missing Article ID.', 'unipress-api' ), 400 );
-				} else if ( !is_numeric( $_REQUEST['article-id'] ) ) {
-					throw new Exception( __( 'Invalid Article Format.', 'unipress-api' ), 400 );
+				if ( empty( $_REQUEST['article-id'] ) && empty( $_REQUEST['article-url'] ) ) {
+					throw new Exception( __( 'Missing Article ID or URL.', 'unipress-api' ), 400 );
+				} else if ( !empty( $_REQUEST['article-id'] ) && !is_numeric( $_REQUEST['article-id'] ) ) {
+					throw new Exception( __( 'Invalid Article ID Format.', 'unipress-api' ), 400 );
 				}
 				
 				if ( empty( $_REQUEST['device-id'] ) ) {
@@ -1260,7 +1273,12 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 				if ( !empty( $settings['attachment-baseurl'] ) ) { //setting override WordPress default
 					$baseurl = $settings['attachment-baseurl'];
 				}
-				$post = get_post( $_REQUEST['article-id'] );
+				if ( !empty( $_REQUEST['article-id'] ) ) {
+					$article_id = $_REQUEST['article-id'];
+				} else {
+					$article_id = url_to_postid( $_REQUEST['article-url'] );
+				}
+				$post = get_post( $article_id );
 				setup_postdata( $post ); 
 
 				$response['http_code'] = 200;
@@ -1316,6 +1334,11 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					if ( !empty( $attachment_posts ) ) {
 						foreach ( $attachment_posts as $attachment ) {
 							$metadata = wp_get_attachment_metadata( $attachment->ID );
+							$temp_attachment = get_post( $attachment->ID );
+							$metadata['image_meta']['title']       = $temp_attachment->post_title;
+							$metadata['image_meta']['alt']         = get_post_meta( $temp_attachment->ID, '_wp_attachment_image_alt', true );
+							$metadata['image_meta']['description'] = $temp_attachment->post_content;
+							$metadata['image_meta']['caption']     = $temp_attachment->post_excerpt;
 							if ( !empty( $metadata ) ) {
 								$attachments[] = $metadata;
 							}
@@ -1326,7 +1349,15 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 					
 					$post->attachment_baseurl = apply_filters( 'unipress_api_attachment_baseurl', $baseurl );
 					$post->attachments = $attachments;
-					$post->featured_image = apply_filters( 'unipress_api_get_article_featured_image', wp_get_attachment_metadata( get_post_thumbnail_id( $post->ID ) ), $post->ID );
+					
+					$featured_image_id = get_post_thumbnail_id( $post->ID );
+					$post->featured_image = wp_get_attachment_metadata( $featured_image_id );
+					$temp_attachment = get_post( $featured_image_id );
+					$post->featured_image['image_meta']['title']       = $temp_attachment->post_title;
+					$post->featured_image['image_meta']['alt']         = get_post_meta( $temp_attachment->ID, '_wp_attachment_image_alt', true );
+					$post->featured_image['image_meta']['description'] = $temp_attachment->post_content;
+					$post->featured_image['image_meta']['caption']     = $temp_attachment->post_excerpt;
+					$post->featured_image = apply_filters( 'unipress_api_get_article_featured_image', $post->featured_image, $post->ID );
 					
 					$post->author_meta = new stdClass();
 					$post->author_meta->user_login 		= get_the_author_meta( 'user_login', 		$post->post_author );
@@ -1981,32 +2012,50 @@ if ( ! class_exists( 'UniPress_API' ) ) {
 						throw new Exception( __( 'Invalid Device Type. Must be iOS or Android.', 'unipress-api' ), 400 );						
 					}
 				}
-								
-				$user = unipress_api_get_user_by_device_id( $post['device-id'] );
-				
-				if ( empty( $user ) ) {
-					throw new Exception( __( 'Unable to locate user for this device.', 'unipress-api' ), 400 );
-				}
 				
 				if ( empty( $post['comment'] ) ) {
 					throw new Exception( __( 'Empty Comment.', 'unipress-api' ), 400 );
 				}
-												
+				
 				$args = array(
 					'comment_post_ID' 		=> $post['article-id'],
-					'comment_author' 		=> $user->user_login,
-					'comment_author_email' 	=> $user->user_email,
 					'comment_content' 		=> $post['comment'],
+					'comment_author_url' 	=> '',
 					'comment_type' 			=> '',
 					'comment_parent' 		=> !empty( $post['parent-comment-id'] ) ? $post['parent-comment-id'] : 0,
-					'user_id' 				=> $user->ID,
 					'comment_author_IP' 	=> unipress_api_get_ip_address(),
 					'comment_agent' 		=> $post['device-type'],
 					'comment_date' 			=> current_time('mysql'),
 					'comment_approved' 		=> 1,
 				);
 				
-				$comment_id = wp_insert_comment( $args );
+				$user = unipress_api_get_user_by_device_id( $post['device-id'] );
+				
+				if ( empty( $user ) ) {
+					if ( !(bool) get_option( 'comment_registration' ) ) { 
+						if ( (bool) get_option( 'require_name_email' ) ) {
+							if ( empty( $post['comment-name'] ) ) {
+								throw new Exception( __( 'Comment author must fill out name.', 'unipress-api' ), 400 );
+							} else if ( !is_numeric( $post['comment-email'] ) ) {
+								throw new Exception( __( 'Comment author must fill out e-mail address.', 'unipress-api' ), 400 );
+							}
+							$args['comment_author']       = $post['comment-name'];
+							$args['comment_author_email'] = $post['comment-email'];
+						} else {
+							//Allow anonymous commenting
+							$args['comment_author']       = '';
+							$args['comment_author_email'] = '';
+						}
+					} else {
+						throw new Exception( __( 'Unable to locate user for this device.', 'unipress-api' ), 400 );
+					}
+				} else {
+					$args['comment_author']       = $user->user_login;
+					$args['comment_author_email'] = $user->user_email;
+					$args['user_id']              = $user->ID;
+				}
+				
+				$comment_id = wp_new_comment( $args );
 										
 				if ( !empty( $comment_id ) ) {
 					$response = array(

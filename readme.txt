@@ -3,7 +3,7 @@ Contributors: layotte, pericson, endocreative
 Tags: mobile, app, api
 Requires at least: 3.3
 Tested up to: 4.3
-Stable tag: 1.2.5
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,6 +31,11 @@ You must have:
 
 
 == Changelog ==
+= 1.3.0 =
+* Allow get-article call to support article-url if article-id is not supplied
+* Adding title, description, alt, and caption to image_meta values
+* Adding support for anonymous and unregistered comments
+
 = 1.2.5 =
 * Adding post_url to post variable
 * Fixing bug when offset is set and posts_per_page isn't
